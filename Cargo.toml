@@ -1,0 +1,9 @@
+[package]
+name = "todo-os"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "todo-os"
+test = false
+bench = false
