@@ -5,3 +5,8 @@
 fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
+
+#[unsafe(no_mangle)]
+extern "C" fn _kmain() {
+    loop{}
+}
