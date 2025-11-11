@@ -6,7 +6,6 @@
 
 .section .text.boot
 .global _start
-
 _start:
 
 .macro PPN, reg, label
@@ -14,7 +13,7 @@ _start:
   srli \reg, \reg, PAGE_SHIFT
 .endm
 
-/*t0 should have va, t1 should have ppn*/
+# t0 should have va, t1 should have ppn
 .macro PTE_SET, pt, lvl, flags
   srli t0, t0, (PAGE_SHIFT + 9 * \lvl)
   andi t0, t0, (1 << 9) - 1
@@ -29,35 +28,32 @@ _start:
   sd t1, 0(t0)
 .endm
 
-  /*Identity mapping*/
+  # Identity mapping
   li t0, 0
   li t1, 0
   PTE_SET _kernel_pt, 3, PTE_VALID | PTE_READ | PTE_WRITE | PTE_EXECUTE
 
-  /*Higher half mapping*/
+  # Higher half mapping
   la t0, vma_offset
   ld t0, 0(t0)
   li t1, 0
   PTE_SET _kernel_pt, 3, PTE_VALID | PTE_READ | PTE_WRITE | PTE_EXECUTE
 
-  /*Start MMU*/
+  # Start MMU
   li t1, 9
 	slli t1, t1, 60
 	PPN t0, _kernel_pt
 	or t0, t0, t1
 	csrw satp, t0
 
-  /*Set stack pointer*/
-  li sp, 1
-  slli sp, sp, 20 /*1 << 20 = 1MB Stack*/
-  la t0, kend
-  ld t0, 0(t0)
-  add sp, sp, t0
+  # Set stack pointer to region defined in linker script
+  la t0, stack_top
+  ld sp, 0(t0)
 
-  /*Jump to higher half*/
+  # Jump to higher half boot fn
   la t0, kmain
   ld t0, 0(t0)
-  jalr x0, t0, 0
+  jalr zero, t0, 0
 
 .macro DEFINE_PAGE, name
 .align PAGE_SHIFT
@@ -70,5 +66,5 @@ _start:
 DEFINE_PAGE _kernel_pt
 
 vma_offset: .quad _VMA_OFFSET
-kend: .quad _kend
 kmain: .quad _kmain
+stack_top: .quad _stack_top

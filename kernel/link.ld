@@ -32,6 +32,9 @@ SECTIONS {
     _ebss = .;
   }
 
-  _kend = .;
+  .stack ALIGN(16) (NOLOAD) : {
+    . += 4K;
+    _stack_top = .;
+  }
 
 }

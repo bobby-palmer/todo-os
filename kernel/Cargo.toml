@@ -5,3 +5,7 @@ edition = "2024"
 
 [build-dependencies]
 cc = "1.0"
+
+[dependencies]
+fdt = "0.1.5"
+spin = "0.10.0"
