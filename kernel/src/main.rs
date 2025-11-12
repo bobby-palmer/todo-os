@@ -8,6 +8,8 @@ use crate::memory::PhysicalAddress;
 mod sbi;
 mod console;
 mod memory;
+mod exception;
+mod riscv;
 
 unsafe extern "C" {
     static mut _sbss: u8;
