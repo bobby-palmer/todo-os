@@ -1,6 +1,10 @@
 #![no_std]
 #![no_main]
 
+use core::cmp::max;
+
+use crate::memory::PhysicalAddress;
+
 mod sbi;
 mod console;
 mod memory;
@@ -16,14 +20,58 @@ extern "C" fn _kmain(_hart_id: u64, fdt_ptr: *const u8) -> ! {
     init_bss();
 
     let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
-    println!("fdt is {} bytes", fdt.total_size());
+
+    let mut highest_reserved = PhysicalAddress::null();
+
+    // System reserved memory info
+    let mut reservations = fdt.memory_reservations();
+    while let Some(region) = reservations.next() {
+        let reservation_start: PhysicalAddress = 
+            (region.address() as usize).into();
+        let reservation_end = reservation_start + region.size();
+
+        highest_reserved = max(highest_reserved, reservation_end);
+    }
+
+    // Open sbi reserved memory info
+    if let Some(reservation_node) = fdt.find_node("/reserved-memory") {
+        let mut children = reservation_node.children();
+        while let Some(child) = children.next() {
+            let mut regions = child.reg().unwrap();
+            while let Some(region) = regions.next() {
+                let reservation_start: PhysicalAddress = 
+                    (region.starting_address as usize).into();
+                let reservation_end = reservation_start + region.size.unwrap();
+
+                highest_reserved = max(highest_reserved, reservation_end);
+            }
+        }
+    }
+
+    println!("Highest reserved addr: {:?}", highest_reserved);
+
+    // Get ram info (only supports one ram region)
+    let memory_info = fdt.memory();
+    let free_ram_info = memory_info.regions().next().unwrap();
+
+    let ram_start: PhysicalAddress = 
+        (free_ram_info.starting_address as usize).into();
+    let ram_end = ram_start + free_ram_info.size.unwrap();
+
+    println!("RAM: start {:?}, end {:?}", ram_start, ram_end);
+
+    memory::init(highest_reserved, ram_end);
+
+    // END
     println!("Hello from kmain");
     loop {}
 }
 
 /// Global panic handler
 #[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    println!("!!! Kernel Panic !!!");
+    println!("{}", info.message());
     loop {}
 }
 
