@@ -1,15 +1,14 @@
 #![no_std]
 #![no_main]
 
-use core::cmp::max;
+use core::{cmp::max};
 
 use crate::memory::PhysicalAddress;
 
 mod sbi;
 mod console;
 mod memory;
-mod exception;
-mod riscv;
+mod trap;
 
 unsafe extern "C" {
     static mut _sbss: u8;
@@ -20,6 +19,7 @@ unsafe extern "C" {
 #[unsafe(no_mangle)]
 extern "C" fn _kmain(_hart_id: u64, fdt_ptr: *const u8) -> ! {
     init_bss();
+    trap::init();
 
     let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
 

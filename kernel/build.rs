@@ -5,6 +5,7 @@ fn main() {
 
     cc::Build::new()
         .file("src/asm/boot.S") 
+        .file("src/asm/trap.S")
         .flag("-march=rv64gc")  // Specify Architecture
         .flag("-mabi=lp64d")   // Specify ABI to match Rust's FPU usage
         .compile("asm_entry");
@@ -26,5 +27,6 @@ fn main() {
     // File change detection
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=src/asm/boot.S");
+    println!("cargo:rerun-if-changed=src/asm/trap.S");
     println!("cargo:rerun-if-changed=link.ld");
 }
