@@ -11,11 +11,13 @@ fn main() {
         .compile("asm_entry");
 
     // Set linker script
-    // Get the path to the directory containing this build script (the kernel crate root)
+    // Get the path to the directory containing this build script 
+    // (the kernel crate root)
     let manifest_dir = PathBuf::from(env::var("CARGO_MANIFEST_DIR").unwrap());
 
     // Assuming link.ld is in the kernel/ directory or the workspace root.
-    // If it's in the workspace root, you'll need to go up one level (manifest_dir.parent().unwrap())
+    // If it's in the workspace root, you'll need to go up one level
+    // (manifest_dir.parent().unwrap())
     let link_path = manifest_dir.join("link.ld"); 
 
     // Convert the absolute path to a string
