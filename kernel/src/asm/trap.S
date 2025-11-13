@@ -42,6 +42,7 @@
 .align 4
 
 _trap_entry:
+  wfi
   csrrw tp, sscratch, tp
   beqz tp, early_kernel
 

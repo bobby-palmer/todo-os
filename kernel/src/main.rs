@@ -3,7 +3,7 @@
 
 use core::{cmp::max};
 
-use crate::memory::PhysicalAddress;
+use crate::memory::{PhysicalAddress, KERNEL_SPACE_START};
 
 mod sbi;
 mod console;
@@ -13,6 +13,7 @@ mod trap;
 unsafe extern "C" {
     static mut _sbss: u8;
     static mut _ebss: u8;
+    static mut _kend: u8;
 }
 
 /// Entry point for the boot hart after running asm/boot.S
@@ -23,7 +24,8 @@ extern "C" fn _kmain(_hart_id: u64, fdt_ptr: *const u8) -> ! {
 
     let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
 
-    let mut highest_reserved = PhysicalAddress::null();
+    let mut highest_reserved: PhysicalAddress = 
+        (&raw const _kend as usize - KERNEL_SPACE_START).into();
 
     // System reserved memory info
     let mut reservations = fdt.memory_reservations();

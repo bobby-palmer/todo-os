@@ -37,4 +37,6 @@ SECTIONS {
     _stack_top = .;
   }
 
+  _kend = .;
+
 }
