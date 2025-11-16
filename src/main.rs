@@ -1,8 +1,6 @@
 #![no_std]
 #![no_main]
 
-use crate::mem::address::PhysicalAddress;
-
 mod sbi;
 mod mem;
 mod console;
@@ -14,10 +12,7 @@ extern "C" fn kmain(_hart_id: usize, fdt_ptr: *const u8) -> ! {
 
     bss_init();
 
-    let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
-    let fdt_start = PhysicalAddress::new(fdt_ptr as usize);
-
-    mem::init(&fdt, fdt_start);
+    let _fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
 
     println!("Kernel end");
     loop {}
