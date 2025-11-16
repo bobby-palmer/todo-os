@@ -50,7 +50,7 @@ unsafe impl GlobalAlloc for KernelHeap {
         let index = (order - Cache::MIN_ORDER) as usize;
 
         if index < self.caches.len() {
-            self.caches[index].lock().alloc()
+            todo!()
         } else {
             todo!() // Large allocation
         }
@@ -61,7 +61,7 @@ unsafe impl GlobalAlloc for KernelHeap {
         let index = (order - Cache::MIN_ORDER) as usize;
 
         if index < self.caches.len() {
-            self.caches[index].lock().dealloc(ptr);
+            todo!()
         } else {
             todo!() // Large allocation
         }
@@ -86,14 +86,33 @@ impl Cache {
     }
 
     unsafe fn alloc(&mut self) -> Option<NonNull<u8>> {
-        todo!()
+        unsafe {
+            let mut slab = self.head?;
+            let slot = slab.as_mut().alloc().unwrap();
+
+            if slab.as_ref().slots.0.is_none() {
+                self.head = slab.as_ref().next;
+            }
+
+            Some(slot)
+        }
     }
 
     unsafe fn dealloc(&mut self, ptr: NonNull<u8>) {
         unsafe {
-            let slab = Slab::get_slab_for_ptr(ptr);
+            let mut slab = Slab::get_slab_for_ptr(ptr);
+
+            if slab.as_ref().is_empty() {
+                slab.as_mut().next = self.head;
+                self.head = Some(slab);
+            }
+
+            slab.as_mut().dealloc(ptr);
+
+            if slab.as_ref().used_slots == 0 {
+                page_list::free(slab.cast());
+            }
         }
-        todo!()
     }
 }
 
@@ -124,7 +143,7 @@ impl Slab {
                 slots: SlabLink(None),
             });
 
-            let after_header = me.offset(1).cast::<u8>();
+            let after_header = me.add(1).cast::<u8>();
             let mut slot_ptr = after_header.add(after_header.align_offset(alloc_size));
 
             while slot_ptr.add(alloc_size) < page.add(1).cast() {
@@ -148,11 +167,16 @@ impl Slab {
         Some(slot.cast())
     }
 
-    unsafe fn free(&mut self, ptr: NonNull<u8>) {
+    unsafe fn dealloc(&mut self, ptr: NonNull<u8>) {
         let node = ptr.cast::<SlabLink>();
         unsafe { node.write(self.slots); }
         self.slots.0 = Some(node);
         self.used_slots -= 1;
+    }
+
+    /// true -> no more empty slots
+    fn is_empty(&self) -> bool {
+        self.slots.0.is_none()
     }
 }
 
