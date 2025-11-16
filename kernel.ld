@@ -37,4 +37,6 @@ SECTIONS {
     _sstack = .;
   }
 
+  _kend = ALIGN(4K);
+
 }

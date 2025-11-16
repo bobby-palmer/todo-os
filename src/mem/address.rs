@@ -1,4 +1,4 @@
-use core::ops::{Add, Sub};
+use core::ops::{Add, AddAssign, Sub, SubAssign};
 
 use crate::constants::VIRTUAL_OFFSET;
 
@@ -21,11 +21,17 @@ impl Alignment {
     }
 }
 
+impl From<usize> for Alignment {
+    fn from(value: usize) -> Self {
+        Self::new(value)
+    }
+}
+
 /// Helper macro to keep physical / virtual address defs in sync
 macro_rules! make_addr_type {
     ($name:ident) => {
 
-        #[derive(Copy, Clone)]
+        #[derive(Copy, Clone, Eq, PartialEq, Ord, PartialOrd)]
         pub struct $name(usize);
 
         impl $name {
@@ -60,6 +66,12 @@ macro_rules! make_addr_type {
             }
         }
 
+        impl AddAssign<usize> for $name {
+            fn add_assign(&mut self, rhs: usize) {
+                *self = *self + rhs;
+            }
+        }
+
         impl Sub<usize> for $name {
             type Output = Self;
             fn sub(self, rhs: usize) -> Self::Output {
@@ -68,10 +80,17 @@ macro_rules! make_addr_type {
                 Self(result)
             }
         }
+
+        impl SubAssign<usize> for $name {
+            fn sub_assign(&mut self, rhs: usize) {
+                *self = *self - rhs
+            }
+        }
     };
 }
 
 make_addr_type!(PhysicalAddress);
+
 
 impl PhysicalAddress {
 
@@ -93,5 +112,9 @@ impl VirtualAddress {
 
     pub fn as_mut_ptr<T>(self) -> *mut T {
         self.0 as *mut T
+    }
+
+    pub fn from_ptr<T>(ptr: *const T) -> Self {
+        Self(ptr as usize)
     }
 }

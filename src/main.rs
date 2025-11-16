@@ -1,6 +1,8 @@
 #![no_std]
 #![no_main]
 
+use crate::mem::address::PhysicalAddress;
+
 mod sbi;
 mod mem;
 mod console;
@@ -12,9 +14,13 @@ extern "C" fn kmain(_hart_id: usize, fdt_ptr: *const u8) -> ! {
 
     bss_init();
 
-    let _fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
+    let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
+    let fdt_start = PhysicalAddress::new(fdt_ptr as usize);
 
-    panic!("END OF KERNEL");
+    mem::init(&fdt, fdt_start);
+
+    println!("Kernel end");
+    loop {}
 }
 
 /// Set the global panic handler for kernel
@@ -25,7 +31,6 @@ fn panic(info: &core::panic::PanicInfo) -> ! {
     println!("{:?}", info);
     loop {}
 }
-
 
 /// Zero out the bss
 fn bss_init() {

@@ -1,17 +1,46 @@
-//! Page frame allocator (pfa). Allocates singular physical page frames
+//! Internal page frame allocator for the memory module. will be wrapped to 
+//! include ownership guarantees for external callers
 
-use crate::mem::address::PhysicalAddress;
+use spin::Mutex;
 
-pub struct PageFrame(PhysicalAddress);
+use crate::{constants::PAGE_SIZE, mem::address::PhysicalAddress};
 
-impl PageFrame {
+/// Allocate a single page frame
+pub(super) fn alloc() -> Option<PhysicalAddress> {
+    let mut list = FREE_LIST.lock();
 
+    let node = list.head?;
+    unsafe { list.head = *node.to_virtual().as_ptr(); }
+    list.length -= 1;
+
+    Some(node)
 }
 
-pub fn alloc() -> Option<PageFrame> {
-    todo!()
+/// Free a single page frame (should be called on frames allocated from "alloc")
+pub(super) fn free(frame: PhysicalAddress) {
+    assert!(frame.is_aligned(PAGE_SIZE.into()));
+
+    let mut list = FREE_LIST.lock();
+    
+    unsafe { *frame.to_virtual().as_mut_ptr::<Link>() = list.head; }
+    list.head = Some(frame);
+    list.length += 1;
 }
 
-pub fn free(frame: PageFrame) {
-    todo!()
+type Link = Option<PhysicalAddress>;
+
+struct List {
+    length: usize,
+    head: Link,
 }
+
+impl List {
+    const fn new() -> Self {
+        Self {
+            length: 0,
+            head: None,
+        }
+    }
+}
+
+static FREE_LIST: Mutex<List> = Mutex::new(List::new());
