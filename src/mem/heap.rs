@@ -1,14 +1,84 @@
-use core::ptr::NonNull;
+use core::{alloc::{GlobalAlloc, Layout}, cmp::max, ptr::{self, NonNull}};
+
+use spin::Mutex;
 
 use crate::mem::{address::Page, pfa};
 
+#[global_allocator]
+static HEAP: Heap = Heap::new();
+
+struct Heap {
+    caches: [Mutex<Cache>; 8]
+}
+
+impl Heap {
+    const fn new() -> Self {
+        let caches = [
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 0)),
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 1)),
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 2)),
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 3)),
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 4)),
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 5)),
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 6)),
+            Mutex::new(Cache::new(Cache::MIN_ORDER + 7)),
+        ];
+
+        Self {
+            caches
+        }
+    }
+
+    fn get_order(layout: Layout) -> usize {
+        let bytes = layout.size();
+        let align = layout.align();
+        let min_b = max(bytes, align);
+        let min_o = min_b.ilog2() +
+            if min_b.is_power_of_two() { 0 } else { 1 };
+
+        max(min_o as usize, Cache::MIN_ORDER)
+    }
+}
+
+unsafe impl GlobalAlloc for Heap {
+    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
+        let cache_order = Self::get_order(layout);
+        let cache_index = cache_order - Cache::MIN_ORDER;
+
+        if cache_index < self.caches.len() {
+            let result = self.caches[cache_index].lock().alloc();
+
+            match result {
+                Some(ptr) => ptr.as_ptr(),
+                None => ptr::null_mut(),
+            }
+        } else {
+            ptr::null_mut()
+        }
+    }
+
+    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        let cache_order = Self::get_order(layout);
+        let cache_index = cache_order - Cache::MIN_ORDER;
+        if cache_index < self.caches.len() {
+            self.caches[cache_index].lock().free(NonNull::new(ptr)
+                .unwrap());
+        } else {
+            todo!()
+        }
+    }
+}
 
 struct Cache {
     order: usize,
     slabs: Option<NonNull<Slab>>,
 }
 
+unsafe impl Send for Cache {}
+
 impl Cache {
+    const MIN_ORDER: usize = 3;
+
     const fn new(order: usize) -> Self {
         Self {
             order,
@@ -26,7 +96,7 @@ impl Cache {
             let result = slab.as_mut().alloc();
 
             if slab.as_ref().is_fully_taken() {
-                
+                self.pop();   
             }
 
             result
@@ -34,11 +104,31 @@ impl Cache {
     }
 
     fn free(&mut self, ptr: NonNull<u8>) {
-        todo!()
+        unsafe {
+            let mut slab = Slab::get_owner(ptr);
+
+            if slab.as_ref().is_fully_taken() {
+                self.prepend(slab);
+            }
+
+            slab.as_mut().free(ptr);
+        }
     }
 
-    fn prepend(&mut self, slab: NonNull<Slab>) {
-        todo!()
+    fn prepend(&mut self, mut slab: NonNull<Slab>) {
+        unsafe {
+            slab.as_mut().next = self.slabs;
+            self.slabs = Some(slab);
+        }
+    }
+
+    fn pop(&mut self) {
+        unsafe {
+            if let Some(mut slab) = self.slabs {
+                self.slabs = slab.as_ref().next;
+                slab.as_mut().next = None;
+            }
+        }
     }
 }
 
@@ -47,6 +137,7 @@ struct Slab {
     slots: Slot,
     used: usize,
 }
+
 
 impl Slab {
     fn new(alloc_size: usize) -> Option<NonNull<Self>> {
