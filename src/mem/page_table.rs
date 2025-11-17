@@ -2,8 +2,6 @@
 
 use core::ops::{Add, Sub};
 
-use crate::mem::common::{PhysicalPageNumber, VirtualPageNumber};
-
 pub enum Flag {
     Valid,
     Read,
@@ -51,7 +49,11 @@ impl Flags {
     }
 
     fn is_leaf(&self) -> bool {
-        todo!()
+        self.contains(Flag::Valid) && (
+            self.contains(Flag::Read)
+            | self.contains(Flag::Write) 
+            | self.contains(Flag::Execute)
+        )
     }
 }
 
@@ -73,18 +75,19 @@ impl Sub<Flag> for Flags {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-struct Pte(u64);
+pub struct Pte(u64);
 
 impl Pte {
-    fn new(ppn: PhysicalPageNumber, flags: Flags) -> Self {
-        Self((ppn.0 << 10) | flags.0)
+
+    pub fn new(ppn: u64, flags: Flags) -> Self {
+        Self((ppn << 10) | flags.0)
     }
 
-    fn ppn(&self) -> PhysicalPageNumber {
-        PhysicalPageNumber(self.0 >> 10)
+    pub fn ppn(&self) -> u64 {
+        self.0 >> 10
     }
 
-    fn flags(&self) -> Flags {
+    pub fn flags(&self) -> Flags {
         Flags(self.0 & 0xFF)
     }
 
@@ -98,20 +101,15 @@ pub struct PageTable([Pte; 512]);
 
 impl PageTable {
 
-    pub fn map_page(
-        &mut self, 
-        vpn: VirtualPageNumber, 
-        ppn: PhysicalPageNumber,
-        flags: Flags) {
-
+    pub fn map_page(&mut self, vpn: u64, pte: Pte) {
         todo!()
     }
 
-    pub fn unmap_page(&mut self, vpn: VirtualPageNumber) {
+    pub fn unmap_page(&mut self, vpn: u64) {
         todo!()
     }
 
-    pub fn look_up(&self, vpn: VirtualPageNumber) -> Option<PhysicalPageNumber> {
+    pub fn look_up(&self, vpn: u64) -> Option<Pte> {
         todo!()
     }
 

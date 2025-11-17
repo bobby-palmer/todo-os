@@ -1,26 +1,37 @@
+/*
+  Identity map one GB and virtual map at start of kernel space using SV 39
+*/
+
 .equ PAGE_SHIFT, 12
-.equ PAGE_SIZE, 1 << PAGE_SHIFT  /* 4096 bytes */
-.equ FLAGS, 0xF
+.equ PAGE_SIZE, 1 << 12
 
 .section .text.boot
 .global _start
 
 _start:
   la t0, _kernel_pt
-  li t1, FLAGS /*Pte entry mapping to phys addr 0*/
-  
-  # identity map
-  sd t1, 0(t0)
+  la t1, _RAM_START
+  srli t1, t1, PAGE_SHIFT /*t1 is PPN of ram start*/
 
-  # higher half identity map
-  li t2, 0x100
-  slli t2, t2, 3
-  add t2, t0, t2
-  sd t1, 0(t2)
+  # Create pte in t2
+  slli t2, t1, 10
+  addi t2, t2, 0xF
+
+  # identity map
+  srli t1, t1, (9 + 9)
+  slli t1, t1, 3 /* Multiply by size of pte*/
+  add t1, t0, t1 /* Get entry location */
+  sd t2, 0(t1)
+
+  # Virtual map
+  li t1, 1
+  slli t1, t1, 3 + 8
+  add t1, t0, t1
+  sd t2, 0(t1)
 
   # start mmu
   srli t0, t0, PAGE_SHIFT
-  li t1, 9
+  li t1, 8
   slli t1, t1, 60
   or t0, t0, t1
   csrw satp, t0

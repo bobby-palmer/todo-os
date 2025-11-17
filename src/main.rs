@@ -13,7 +13,7 @@ extern "C" fn kmain(_hart_id: usize, fdt_ptr: *const u8) -> ! {
 
     let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
 
-    mem::init(&fdt);
+    // mem::init(&fdt);
 
     println!("Kernel end");
     loop {}

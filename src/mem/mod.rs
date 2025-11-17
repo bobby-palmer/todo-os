@@ -7,4 +7,3 @@ pub fn init(_fdt: &Fdt) {
 
 pub mod page_table;
 pub mod common;
-pub mod page_free_list;

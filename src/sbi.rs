@@ -71,7 +71,7 @@ pub mod debug_console {
     use super::*;
     const EID: i32 = 0x4442434E;
     // TODO remove this when mapping works
-    const OFFSET: usize = 0xffff800000000000;
+    const OFFSET: usize = 0xffffffc000000000 - 0x80000000;
 
     pub fn console_write(message: &str) -> Result<usize, SbiError> {
         call(EID, 0x0, SbiArgs{
