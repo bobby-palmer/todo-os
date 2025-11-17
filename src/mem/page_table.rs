@@ -1,6 +1,6 @@
 //! RISCV-64 Sv48 Page tables
 
-use core::ops::{Add, Sub};
+use core::{ops::{Add, Sub}, ptr::NonNull};
 
 pub enum Flag {
     Valid,
@@ -101,22 +101,16 @@ pub struct PageTable([Pte; 512]);
 
 impl PageTable {
 
-    pub fn map_page(&mut self, vpn: u64, pte: Pte) {
+    pub fn get_current() -> NonNull<PageTable> {
         todo!()
     }
 
-    pub fn unmap_page(&mut self, vpn: u64) {
-        todo!()
+    /// Make a 1GB mapping (typically used for kernel only)
+    pub fn map_huge(&mut self, vpn: u64, pte: Pte) {
+        self.0[Self::index_vpn(vpn, 2)] = pte;
     }
 
-    pub fn look_up(&self, vpn: u64) -> Option<Pte> {
-        todo!()
-    }
-
-}
-
-impl Drop for PageTable {
-    fn drop(&mut self) {
-        todo!()
+    fn index_vpn(vpn: u64, level: u8) -> usize {
+        ((vpn >> (9 * level)) & 0x1FF) as usize
     }
 }

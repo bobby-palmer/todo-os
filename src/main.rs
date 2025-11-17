@@ -4,16 +4,18 @@
 mod sbi;
 mod mem;
 mod console;
+mod trap;
 
 /// Entry point to kernel boot strap after boot.S
 #[unsafe(no_mangle)]
 extern "C" fn kmain(_hart_id: usize, fdt_ptr: *const u8) -> ! {
 
     bss_init();
+    trap::init_hart(); // for debug while working on memory
 
     let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
 
-    // mem::init(&fdt);
+    mem::init(&fdt);
 
     println!("Kernel end");
     loop {}

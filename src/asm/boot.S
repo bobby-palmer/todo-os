@@ -1,6 +1,6 @@
-/*
-  Identity map one GB and virtual map at start of kernel space using SV 39
-*/
+# 1) Identity and virtual map 1GB at start of kernel space using SV 39
+# 2) Set stack
+# 3) jump to kmain
 
 .equ PAGE_SHIFT, 12
 .equ PAGE_SIZE, 1 << 12
