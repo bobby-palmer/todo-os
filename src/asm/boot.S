@@ -30,6 +30,10 @@ _start:
   ld t0, 0(t0)
   mv sp, t0
 
+  # make sure sscratch is zeroed
+  li t0, 0
+  csrw sscratch, t0
+
   # load kmain addr and jump
   la t0, kmain_ptr
   ld t0, 0(t0)
