@@ -2,6 +2,8 @@
 
 use core::{ops::{Add, Sub}, ptr::NonNull};
 
+use crate::mem::{common::{Page, PAGE_SIZE, PHYSICAL_RAM_START, VIRTUAL_RAM_START}, FREE_PAGES};
+
 pub enum Flag {
     Valid,
     Read,
@@ -75,24 +77,28 @@ impl Sub<Flag> for Flags {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct Pte(u64);
+struct Pte(u64);
 
 impl Pte {
 
-    pub fn new(ppn: u64, flags: Flags) -> Self {
+    fn new(ppn: u64, flags: Flags) -> Self {
         Self((ppn << 10) | flags.0)
     }
 
-    pub fn ppn(&self) -> u64 {
-        self.0 >> 10
+    fn ppn(&self) -> Option<u64> {
+        if self.is_valid() {
+            Some(self.0 >> 10)
+        } else {
+            None
+        }
     }
 
-    pub fn flags(&self) -> Flags {
+    fn flags(&self) -> Flags {
         Flags(self.0 & 0xFF)
     }
 
-    fn is_leaf(&self) -> bool {
-        self.flags().is_leaf()
+    fn is_valid(&self) -> bool {
+        self.0 & 1 == 1
     }
 }
 
@@ -100,14 +106,113 @@ impl Pte {
 pub struct PageTable([Pte; 512]);
 
 impl PageTable {
+    pub const MAX_LEVEL: u8 = 2;
 
-    pub fn get_current() -> NonNull<PageTable> {
-        todo!()
+    fn new_raw() -> Option<NonNull<Self>> {
+        if let Some(mut page) = FREE_PAGES.lock().pop() {
+            unsafe {page.as_mut().0.fill(0);}
+            Some(page.cast())
+        } else {
+            None
+        }
     }
 
-    /// Make a 1GB mapping (typically used for kernel only)
-    pub fn map_huge(&mut self, vpn: u64, pte: Pte) {
-        self.0[Self::index_vpn(vpn, 2)] = pte;
+    pub fn translate_addr(&self, vaddr: usize) -> Option<usize> {
+        let vpn = (vaddr / PAGE_SIZE) as u64;
+        if let Some(ppn) = self.translate_page(vpn) {
+            Some((vaddr % PAGE_SIZE) | (ppn as usize * PAGE_SIZE))
+        } else {
+            None
+        }
+    }
+
+    pub fn translate_page(&self, vpn: u64) -> Option<u64> {
+        let (pte, level) = self.get_lowest_pte(vpn, Self::MAX_LEVEL);
+        let mask: u64 = (1 << (9 * level)) - 1;
+
+        if pte.flags().is_leaf() {
+            Some(pte.ppn().unwrap() | (vpn & mask))
+        } else {
+            None
+        }
+    }
+
+    pub fn map_at_level(&mut self, vpn: u64, ppn: u64, flags: Flags, level: u8) -> Result<(), &'static str> {
+        while let (pte, current_level) = self.get_lowest_pte_mut(vpn, Self::MAX_LEVEL) && current_level >  level {
+
+            if pte.flags().is_leaf() {
+                return Err("Already mapped");
+            }
+
+            // TODO return error here
+            let child = Self::new_raw().unwrap(); 
+            let ppn = unsafe {child.cast::<Page>().as_ref().ppn()};
+            *pte = Pte::new(ppn, Flags::empty() + Flag::Valid);
+        }
+
+        let (pte, current_level) = self.get_lowest_pte_mut(vpn, Self::MAX_LEVEL);
+
+        if current_level != level {
+            Err("Cannot map at this level")
+        } else if pte.is_valid() {
+            Err("Already mapped")
+        } else {
+            *pte = Pte::new(ppn, flags);
+            Ok(())
+        }
+    }
+
+    pub fn unmap(&mut self, vpn: u64) -> Result<(), &'static str> {
+        let (pte, _) = self.get_lowest_pte_mut(vpn, Self::MAX_LEVEL);
+
+        if pte.flags().is_leaf() {
+            *pte = Pte::new(0, Flags::empty());
+            Ok(())
+        } else {
+            Err("Vpn not mapped")
+        }
+    }
+
+    pub fn set_flags(&mut self, vpn: u64, flags: Flags) -> Result<(), &'static str> {
+        let (pte, _) = self.get_lowest_pte_mut(vpn, Self::MAX_LEVEL);
+
+        if pte.flags().is_leaf() {
+            let ppn = pte.ppn().unwrap();
+            *pte = Pte::new(ppn, flags);
+            Ok(())
+        } else {
+            Err("Vpn not mapped")
+        }
+    }
+
+    fn get_lowest_pte_mut<'a>(&'a mut self, vpn: u64, current_level: u8) -> (&'a mut Pte, u8) {
+        let pte = &mut self.0[Self::index_vpn(vpn, current_level)];
+        let flags = pte.flags();
+        
+        if flags.contains(Flag::Valid) && !flags.is_leaf() {
+            let page = Page::from_ppn(pte.ppn().unwrap());
+            let mut child = page.cast::<PageTable>();
+            unsafe {
+                child.as_mut().get_lowest_pte_mut(vpn, current_level - 1)
+            }
+        } else {
+            (pte, current_level)
+        }
+    }
+
+    fn get_lowest_pte<'a>(&'a self, vpn: u64, current_level: u8) -> (&'a Pte, u8) {
+        let pte = &self.0[Self::index_vpn(vpn, current_level)];
+        let flags = pte.flags();
+        
+        if flags.contains(Flag::Valid) && !flags.is_leaf() {
+            let page = Page::from_ppn(pte.ppn().unwrap());
+            let child = page.cast::<PageTable>();
+            unsafe {
+                child.as_ref().get_lowest_pte(vpn, current_level - 1)
+            }
+        } else {
+            (pte, current_level)
+        }
     }
 
     fn index_vpn(vpn: u64, level: u8) -> usize {
