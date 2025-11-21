@@ -38,7 +38,7 @@ pub fn init(fdt: &Fdt) {
 
     for ppn in start_ppn..end_ppn {
         if !is_reserved(ppn) {
-            pmm::free_page(pmm::Page::from_ppn(ppn as u64));
+            // pmm::free_page(pmm::Page::from_ppn(ppn as u64));
         }
     }
 }

@@ -1,67 +1,58 @@
-//! Global physical Memory Manager (pmm). Used to manage physical ram frames. 
-//! Should be wrapped in safety checks before exposing outside of mem module
+//! Global physical memory manager for allocating page frames
 
 use core::ptr::NonNull;
 
-use spin::Mutex;
+use crate::mem::PAGE_SIZE;
 
-use crate::mem::{PAGE_SIZE, PHYSICAL_RAM_START, VIRTUAL_RAM_START};
-
-/// Repr for a physical page frame
-#[repr(align(0x1000), C)]
-pub struct Page(pub [u8; 0x1000]);
+/// Repr for a physical page pointer
+#[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
+pub struct Page(u64);
 
 impl Page {
-    /// Get physical page number
+
+    /// Create pointer object from physical page number
+    pub fn new(ppn: u64) -> Self {
+        Self(ppn)
+    }
+
+    /// Return physical page number
     pub fn ppn(&self) -> u64 {
-        let vaddr = self as *const Self as usize;
-        let offset = vaddr - VIRTUAL_RAM_START;
-        ((PHYSICAL_RAM_START + offset) / PAGE_SIZE) as u64
+        self.0
     }
 
-    /// Get frame from physical page number
-    pub fn from_ppn(ppn: u64) -> NonNull<Self> {
-        let pn_offset = ppn - (PHYSICAL_RAM_START / PAGE_SIZE) as u64;
-        let vaddr = VIRTUAL_RAM_START + pn_offset as usize * PAGE_SIZE;
-        unsafe {NonNull::new_unchecked(vaddr as *mut Self)}
+    /// Physical address of this page
+    pub fn paddr(&self) -> usize {
+        self.0 as usize * PAGE_SIZE
+    }
+
+    /// A virtual mapping to this page (in the kernel linear map)
+    pub fn vaddr(&self) -> usize {
+        todo!()
+    }
+
+    /// Get virtual pointer to page casted as an object
+    pub fn as_ptr<T>(&self) -> NonNull<T> {
+        todo!()
     }
 }
 
-pub fn alloc_page() -> Option<NonNull<Page>> {
-    let mut list = FREE_LIST.lock();
-    let page = list.head?;
-    let node = page.cast::<Link>();
-
-    unsafe { list.head = node.read(); }
-    list.length -= 1;
-
-    Some(page)
+/// Called once at boot to init free physical page tracking
+pub fn init(free_physical_start: usize, free_physical_end: usize) {
+    todo!()
 }
 
-pub fn free_page(page: NonNull<Page>) {
-    let mut list = FREE_LIST.lock();
-    let node = page.cast::<Link>();
-
-    unsafe { node.write(list.head); }
-    list.head = Some(page);
-    list.length += 1;
+pub fn alloc(num_pages: usize) -> Option<Page> {
+    todo!()
 }
 
-/// Number of free frames managed by the pmm (for debug)
-pub fn count_free() -> usize {
-    FREE_LIST.lock().length
+pub fn free(base: Page, num_pages: usize) {
+    todo!()
 }
 
-type Link = Option<NonNull<Page>>;
-
-struct FreeList {
-    length: usize,
-    head: Link,
+pub fn alloc_page() -> Option<Page> {
+    alloc(1)
 }
 
-unsafe impl Send for FreeList {}
-
-static FREE_LIST: Mutex<FreeList> = Mutex::new(FreeList{
-    length: 0,
-    head: None,
-});
+pub fn free_page(page: Page) {
+    free(page, 1)
+}

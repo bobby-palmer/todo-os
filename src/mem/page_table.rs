@@ -99,16 +99,29 @@ impl Pte {
 pub struct PageTable([Pte; 512]);
 
 impl PageTable {
-    pub fn map_page(&mut self) -> Result<(), &'static str> {
+
+    pub fn map_at_level(
+        &mut self, 
+        lvl: u64,
+        vpn: u64, 
+        ppn: u64, 
+        flags: FlagSet) -> Result<(), &'static str> 
+    {
         todo!()
     }
 
-    pub fn unmap(&mut self) -> Result<(), &'static str> {
+    /// Unmap at the first leaf node
+    pub fn unmap(&mut self, vpn: u64) -> Result<(), &'static str> {
         todo!()
     }
 
-    pub fn translate(&self, vaddr: usize) -> Option<usize> {
+    pub fn translate(&self, vpn: u64) -> Option<usize> {
         todo!()
+    }
+
+    /// Get vpn index for given level
+    fn get_vpn(vpn: u64, level: u64) -> usize {
+        ((vpn >> (level * 9)) & 0x1FF) as usize
     }
 }
 
