@@ -5,7 +5,7 @@ pub const VIRTUAL_RAM_START: usize = 0xffffffc000000000;
 // pub mod page_table;
 mod pmm;
 mod vmm;
-mod heap;
+mod page_table;
 
 use fdt::Fdt;
 
@@ -41,6 +41,4 @@ pub fn init(fdt: &Fdt) {
             pmm::free_page(pmm::Page::from_ppn(ppn as u64));
         }
     }
-
-    // Setup shared kernel heap
 }
