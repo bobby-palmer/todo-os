@@ -1,13 +1,13 @@
-pub mod page_table;
-pub mod common;
-mod page_list;
+pub const PAGE_SIZE: usize = 0x1000;
+pub const PHYSICAL_RAM_START: usize =        0x80000000;
+pub const VIRTUAL_RAM_START: usize = 0xffffffc000000000;
 
-use core::ptr::NonNull;
+// pub mod page_table;
+mod pmm;
+mod vmm;
+mod heap;
 
-use crate::{mem::common::{Page, PAGE_SIZE, PHYSICAL_RAM_START, VIRTUAL_RAM_START}, println};
 use fdt::Fdt;
-use spin::Mutex;
-use page_list::PageList;
 
 unsafe extern "C" {
     static mut _kend: u8;
@@ -15,44 +15,32 @@ unsafe extern "C" {
 
 /// One time initialization for the boot hart to initialize free ram
 pub fn init(fdt: &Fdt) {
-    unsafe {
-        let ram = fdt.memory().regions().next().unwrap();
-        let ram_start = ram.starting_address.sub(PHYSICAL_RAM_START)
-            .wrapping_add(VIRTUAL_RAM_START);
+    // Initialize pmm with free frames
+    let ram = fdt.memory().regions().next().unwrap();
 
-        let ram_end = ram_start.add(ram.size.unwrap());
+    let start_addr = ram.starting_address as usize;
+    let end_addr = start_addr + ram.size.unwrap();
 
-        println!("init ram with start: {ram_start:?}, end: {ram_end:?}");
+    let start_ppn = (start_addr + PAGE_SIZE - 1) / PAGE_SIZE;
+    let end_ppn =  end_addr / PAGE_SIZE;
 
-        // 1) TODO ensure all ram is mapped
-
-        // 2) Add all free ram to the list
-        let is_reserved = |_page: *const Page| {
-            // TODO skip the fdt blob
-            if _page < (&raw const _kend).cast() {
-                true
-            } else {
-                false
-            }
-        };
-
-        let offset = ram_start.align_offset(PAGE_SIZE);
-        let mut current_page = ram_start.add(offset).cast::<Page>();
-
-        while current_page.add(1) < ram_end.cast() {
-            if !is_reserved(current_page) {
-                FREE_PAGES.lock().prepend(
-                    NonNull::new_unchecked(current_page as *mut Page));
-            }
-
-            current_page = current_page.add(1);
+    // TODO make this more thorough
+    let is_reserved = |ppn: usize| {
+        let phys_kern_end = &raw const _kend as usize
+            - VIRTUAL_RAM_START + PHYSICAL_RAM_START;
+        
+        if ppn * PAGE_SIZE < phys_kern_end {
+            true
+        } else {
+            false
         }
+    };
 
-        println!("Free page list has {} pages", FREE_PAGES.lock().len());
-
-        // 3) Setup kernel mapping spaces TODO
+    for ppn in start_ppn..end_ppn {
+        if !is_reserved(ppn) {
+            pmm::free_page(pmm::Page::from_ppn(ppn as u64));
+        }
     }
-}
 
-/// List of free page buffers to use for single page allocations
-static FREE_PAGES: Mutex<PageList> = Mutex::new(PageList::new());
+    // Setup shared kernel heap
+}
