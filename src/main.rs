@@ -5,8 +5,6 @@ mod sbi;
 mod mem;
 mod console;
 mod trap;
-mod process;
-mod thread;
 
 /// Entry point to kernel boot strap after boot.S
 #[unsafe(no_mangle)]
