@@ -39,16 +39,18 @@ impl Page {
     }
 }
 
-pub fn alloc_page() -> Option<Page> {
+pub struct OutOfMemory;
+
+pub fn alloc_page() -> Result<Page, OutOfMemory> {
     let mut list = FREE_LIST.lock();
-    let page = list.head?;
+    let page = list.head.ok_or(OutOfMemory)?;
 
     list.length -= 1;
     unsafe { 
         list.head = page.as_ptr::<Option<Page>>().read(); 
     }
 
-    Some(page)
+    Ok(page)
 }
 
 pub fn free_page(page: Page) {

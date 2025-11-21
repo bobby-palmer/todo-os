@@ -92,67 +92,42 @@ impl Pte {
     }
 }
 
+/// Page table level (determines how much is covered)
+#[derive(Eq, PartialEq)]
+pub enum MapLevel {
+    /// 1GB
+    Huge,
+    /// 2MB
+    Big,
+    /// one page (4KB)
+    Page,
+}
+
+impl Into<u64> for MapLevel {
+    fn into(self) -> u64 {
+        match self {
+            MapLevel::Huge => 2,
+            MapLevel::Big => 1,
+            MapLevel::Page => 0,
+        }
+    }
+}
+
+impl Iterator for MapLevel {
+    type Item = Self;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            MapLevel::Huge => Some(Self::Big),
+            MapLevel::Big => Some(Self::Page),
+            MapLevel::Page => None,
+        }
+    }
+}
+
 #[repr(C)]
 pub struct PageTable([Pte; 512]);
 
 impl PageTable {
 
-    pub fn map_at_level(
-        &mut self, 
-        lvl: u64,
-        vpn: u64, 
-        ppn: u64, 
-        flags: FlagSet) -> Result<(), &'static str> 
-    {
-        self.map_at_level_rec(2, lvl, vpn, ppn, flags)
-    }
-
-    fn map_at_level_rec(
-        &mut self, 
-        current_lvl: u64,
-        lvl: u64,
-        vpn: u64, 
-        ppn: u64, 
-        flags: FlagSet) -> Result<(), &'static str> 
-    {
-        let idx = Self::get_vpn(vpn, current_lvl);
-
-        if current_lvl == lvl {
-            if self.0[idx].flags().contains(Flag::Valid) {
-                Err("Page is already mapped at this level")
-            } else {
-                self.0[idx] = Pte::new(ppn, flags);
-                Ok(())
-            }
-        } else {
-            todo!()
-        }
-    }
-
-    /// Unmap at the first leaf node
-    pub fn unmap(&mut self, vpn: u64) -> Result<(), &'static str> {
-        self.unmap_rec(2, vpn)
-    }
-
-    fn unmap_rec(&mut self, current_lvl: u64, vpn: u64) 
-        -> Result<(), &'static str>
-    {
-        todo!()
-    }
-
-    /// Return physical page number vpn is mapped to
-    pub fn translate(&self, vpn: u64) -> Option<u64> {
-        todo!()
-    }
-
-    /// Get vpn index for given level
-    fn get_vpn(vpn: u64, level: u64) -> usize {
-        ((vpn >> (level * 9)) & 0x1FF) as usize
-    }
-}
-
-impl Drop for PageTable {
-    fn drop(&mut self) {
-        todo!()
-    }
 }
