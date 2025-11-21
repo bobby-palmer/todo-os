@@ -1,8 +1,11 @@
-//! Global physical memory manager for allocating page frames
+//! Global physical memory manager for allocating page frames.
+//! Currently just a free list
 
 use core::ptr::NonNull;
 
-use crate::mem::PAGE_SIZE;
+use spin::Mutex;
+
+use crate::mem::{PAGE_SIZE, PHYSICAL_RAM_START, VIRTUAL_RAM_START};
 
 /// Repr for a physical page pointer
 #[derive(Clone, Copy, PartialEq, PartialOrd, Ord, Eq)]
@@ -27,32 +30,43 @@ impl Page {
 
     /// A virtual mapping to this page (in the kernel linear map)
     pub fn vaddr(&self) -> usize {
-        todo!()
+        self.paddr() - PHYSICAL_RAM_START + VIRTUAL_RAM_START
     }
 
     /// Get virtual pointer to page casted as an object
     pub fn as_ptr<T>(&self) -> NonNull<T> {
-        todo!()
+        NonNull::new(self.vaddr() as *mut T).unwrap()
     }
 }
 
-/// Called once at boot to init free physical page tracking
-pub fn init(free_physical_start: usize, free_physical_end: usize) {
-    todo!()
-}
-
-pub fn alloc(num_pages: usize) -> Option<Page> {
-    todo!()
-}
-
-pub fn free(base: Page, num_pages: usize) {
-    todo!()
-}
-
 pub fn alloc_page() -> Option<Page> {
-    alloc(1)
+    let mut list = FREE_LIST.lock();
+    let page = list.head?;
+
+    list.length -= 1;
+    unsafe { 
+        list.head = page.as_ptr::<Option<Page>>().read(); 
+    }
+
+    Some(page)
 }
 
 pub fn free_page(page: Page) {
-    free(page, 1)
+    let mut list = FREE_LIST.lock();
+
+    list.length += 1;
+    unsafe { 
+        page.as_ptr::<Option<Page>>().write(list.head);
+    }
+    list.head = Some(page);
 }
+
+struct FreeList {
+    length: usize,
+    head: Option<Page>,
+}
+
+static FREE_LIST: Mutex<FreeList> = Mutex::new(FreeList{
+    length: 0,
+    head: None,
+});
