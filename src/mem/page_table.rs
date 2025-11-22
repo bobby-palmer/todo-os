@@ -93,7 +93,7 @@ impl Pte {
 }
 
 /// Page table level (determines how much is covered)
-#[derive(Eq, PartialEq)]
+#[derive(Eq, PartialEq, Clone, Copy)]
 pub enum MapLevel {
     /// 1GB
     Huge,
@@ -103,8 +103,13 @@ pub enum MapLevel {
     Page,
 }
 
-impl Into<u64> for MapLevel {
-    fn into(self) -> u64 {
+impl MapLevel {
+    fn get_index(&self, vpn: u64) -> usize {
+        let index = self.index();
+        ((vpn >> (9 * index)) & 0x1FF) as usize
+    }
+
+    fn index(&self) -> usize {
         match self {
             MapLevel::Huge => 2,
             MapLevel::Big => 1,
@@ -130,4 +135,31 @@ pub struct PageTable([Pte; 512]);
 
 impl PageTable {
 
+    pub fn map(&mut self, lvl: MapLevel, vpn: u64, ppn: u64, flags: FlagSet) -> Result<(), &'static str> {
+        todo!()
+    }
+
+    pub fn unmap(&mut self, vpn: u64) -> Result<(), &'static str> {
+        todo!()
+    }
+
+    pub fn translate(&self, vpn: u64) -> Option<u64> {
+        todo!()
+    }
+
+    pub fn translate_rec(&self, vpn: u64, current_level: MapLevel) -> Option<u64> {
+        let index = current_level.get_index(vpn);
+        let pte = self.0[index];
+        let flags = pte.flags();
+
+        if flags.contains(Flag::Valid) {
+            if flags.is_leaf() {
+                todo!()
+            } else {
+                todo!()
+            }
+        } else {
+            None
+        }
+    }
 }
