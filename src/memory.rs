@@ -1,5 +1,5 @@
 use fdt::Fdt;
-use page_table_multiarch::PagingHandler;
+use page_table_multiarch::{riscv::{Sv39MetaData, Sv39PageTable}, PageTable64, PagingHandler};
 use memory_addr::{MemoryAddr, PhysAddr, VirtAddr};
 use spin::Mutex;
 use talc::{OomHandler, Talc, Talck};
@@ -72,24 +72,27 @@ impl PhysPageList {
 static PHYSICAL_PAGE_FREE_LIST: Mutex<PhysPageList> = 
     Mutex::new(PhysPageList::new());
 
-/// Kernel virtual memory manager
 struct Vmm {
-    ram_start: VirtAddr,
-    ram_end: VirtAddr,
-    heap_start: VirtAddr,
-    heap_end: VirtAddr,
+    /// The shared kernel page table (no user pages)
+    kernel_pt: Sv39PageTable<PagingHandlerImpl>,
+    /// Bump allocator for kernel heap
+    next_heap_page: VirtAddr,
 }
 
 impl Vmm {
+    /// Construct vmm to manage kernel virtual allocations and memory regions
     fn new(ram_start: VirtAddr, ram_end: VirtAddr) -> Self {
         todo!()
     }
 
-    /// Grow kernel heap by one page
-    fn extend_heap(&mut self) {
-
+    /// Allocate a virtual page that is contiguous with previous heap pages
+    fn alloc_page(&mut self) -> Option<VirtAddr> {
+        todo!()
     }
 }
+
+/// Global kernel space manager
+static VMM: Mutex<Option<Vmm>> = Mutex::new(None);
 
 /// Page table trait to power library functions
 pub struct PagingHandlerImpl;
