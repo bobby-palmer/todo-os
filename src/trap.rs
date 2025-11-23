@@ -2,7 +2,7 @@
 
 use core::{arch::asm, ptr::NonNull};
 
-/// Set the trap entry function on this hart, must be called on all
+/// Set the trap entry function on this hart, must be called on all harts
 pub fn init_hart() {
     unsafe {
         asm!(

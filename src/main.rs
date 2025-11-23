@@ -2,9 +2,9 @@
 #![no_main]
 
 mod sbi;
-mod mem;
 mod console;
 mod trap;
+mod memory;
 
 /// Entry point to kernel boot strap after boot.S
 #[unsafe(no_mangle)]
@@ -15,7 +15,7 @@ extern "C" fn kmain(_hart_id: usize, fdt_ptr: *const u8) -> ! {
 
     let fdt = unsafe {fdt::Fdt::from_ptr(fdt_ptr).unwrap()};
 
-    mem::init(&fdt);
+    memory::init(&fdt);
 
     println!("Kernel end");
     loop {}
