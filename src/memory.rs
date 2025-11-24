@@ -3,6 +3,7 @@
 mod addr;
 mod page_table;
 mod pmm;
+mod vmm;
 
 use fdt::Fdt;
 
