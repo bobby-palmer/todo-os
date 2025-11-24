@@ -1,8 +1,10 @@
+//! Kernel ram management module
+
+mod addr;
+mod page_table;
+mod pmm;
+
 use fdt::Fdt;
-use page_table_multiarch::{riscv::{Sv39MetaData, Sv39PageTable}, PageTable64, PagingHandler};
-use memory_addr::{MemoryAddr, PhysAddr, VirtAddr};
-use spin::Mutex;
-use talc::{OomHandler, Talc, Talck};
 
 pub const PAGE_SIZE: usize = 0x1000;
 pub const PHYSICAL_RAM_START: usize =        0x80000000;
@@ -11,114 +13,4 @@ pub const VIRTUAL_RAM_START: usize = 0xffffffc000000000;
 /// One time boot function
 pub fn init(fdt: &Fdt) {
     let ram = fdt.memory().regions().next().unwrap();
-
-    let ram_start = PhysAddr::from_usize(ram.starting_address as usize);
-    let ram_end = ram_start + ram.size.unwrap();
-
 }
-
-/// Return virtual address in the kernel linear map
-fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {
-    let paddr = paddr.as_usize();
-    let vaddr = paddr.sub(PHYSICAL_RAM_START).add(VIRTUAL_RAM_START);
-    VirtAddr::from_usize(vaddr)
-}
-
-/// Intrusive Physical page linked list
-struct PhysPageList {
-    length: usize,
-    head: Option<PhysAddr>,
-}
-
-impl PhysPageList {
-
-    /// Construct empty page list
-    const fn new() -> Self {
-        Self {
-            length: 0,
-            head: None,
-        }
-    }
-
-    /// Number of pages in this list
-    fn len(&self) -> usize {
-        self.length
-    }
-
-    fn prepend(&mut self, page: PhysAddr) {
-        unsafe {
-            let virt_addr = phys_to_virt(page);
-            let virt_ptr: *mut Option<PhysAddr> = virt_addr.as_mut_ptr_of();
-            virt_ptr.write(self.head);
-            self.head = Some(page);
-            self.length += 1;
-        }
-    }
-
-    fn pop(&mut self) -> Option<PhysAddr> {
-        unsafe {
-            let page = self.head?;
-            let virt_addr = phys_to_virt(page);
-            let virt_pointer: *const Option<PhysAddr> = virt_addr.as_ptr_of();
-            self.head = virt_pointer.read();
-            self.length -= 1;
-
-            Some(page)
-        }
-    }
-}
-
-/// List of free physical pages
-static PHYSICAL_PAGE_FREE_LIST: Mutex<PhysPageList> = 
-    Mutex::new(PhysPageList::new());
-
-struct Vmm {
-    /// The shared kernel page table (no user pages)
-    kernel_pt: Sv39PageTable<PagingHandlerImpl>,
-    /// Bump allocator for kernel heap
-    next_heap_page: VirtAddr,
-}
-
-impl Vmm {
-    /// Construct vmm to manage kernel virtual allocations and memory regions
-    fn new(ram_start: VirtAddr, ram_end: VirtAddr) -> Self {
-        todo!()
-    }
-
-    /// Allocate a virtual page that is contiguous with previous heap pages
-    fn alloc_page(&mut self) -> Option<VirtAddr> {
-        todo!()
-    }
-}
-
-/// Global kernel space manager
-static VMM: Mutex<Option<Vmm>> = Mutex::new(None);
-
-/// Page table trait to power library functions
-pub struct PagingHandlerImpl;
-
-impl PagingHandler for PagingHandlerImpl {
-    fn alloc_frame() -> Option<PhysAddr> {
-        PHYSICAL_PAGE_FREE_LIST.lock().pop()
-    }
-
-    fn dealloc_frame(paddr: PhysAddr) {
-        PHYSICAL_PAGE_FREE_LIST.lock().prepend(paddr);
-    }
-
-    fn phys_to_virt(paddr: PhysAddr) -> VirtAddr {
-        phys_to_virt(paddr)
-    }
-}
-
-/// Handle heap expansion for kernel heap
-struct HeapOomHandler;
-
-impl OomHandler for HeapOomHandler {
-    fn handle_oom(_talc: &mut Talc<Self>, _layout: core::alloc::Layout) -> Result<(), ()> {
-        todo!()
-    }
-}
-
-#[global_allocator]
-static ALLOCATOR: Talck<Mutex<()>, HeapOomHandler> = Talc::new(HeapOomHandler).lock();
