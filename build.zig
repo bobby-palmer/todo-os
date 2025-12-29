@@ -10,7 +10,7 @@ pub fn build(b: *std.Build) void {
         },
     });
 
-    const exe = b.addExecutable(.{
+    const kernel = b.addExecutable(.{
         .name = "kernel",
         .root_module = b.createModule(.{
             .root_source_file = b.path("kernel/kmain.zig"),
@@ -21,10 +21,10 @@ pub fn build(b: *std.Build) void {
         })
     });
 
-    exe.addAssemblyFile(b.path("kernel/start.s"));
-    exe.setLinkerScript(b.path("kernel/linker.ld"));
+    kernel.addAssemblyFile(b.path("kernel/start.s"));
+    kernel.setLinkerScript(b.path("kernel/linker.ld"));
 
-    b.installArtifact(exe);
+    b.installArtifact(kernel);
 
     const run_kernel = b.addSystemCommand(&[_][]const u8 {
         "qemu-system-riscv64",
@@ -36,8 +36,8 @@ pub fn build(b: *std.Build) void {
     });
 
     run_kernel.addArg("-kernel");
-    run_kernel.addFileArg(exe.getEmittedBin());
-    run_kernel.step.dependOn(&exe.step);
+    run_kernel.addFileArg(kernel.getEmittedBin());
+    run_kernel.step.dependOn(&kernel.step);
 
     const run_step = b.step("run", "Run the kernel in qemu");
     run_step.dependOn(&run_kernel.step);
