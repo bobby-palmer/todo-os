@@ -34,8 +34,7 @@ fn ecall(eid: i32, fid: i32, args: []const usize) SbiError!isize {
           [in_a5] "{a5}" (a5),
           [in_a6] "{a6}" (a6),
           [in_a7] "{a7}" (a7),
-        : .{ .memory = true }
-    );
+        : .{ .memory = true });
 
     // a0 contains error code, a1 contains return value
     const err: isize = @bitCast(a0);
@@ -57,7 +56,6 @@ fn ecall(eid: i32, fid: i32, args: []const usize) SbiError!isize {
 
 /// Legacy open-SBI calls, deprecate eventually. Function ID doesn't matter for these.
 pub const Legacy = struct {
-
     /// Write data present in ch to debug console. Unlike
     /// sbi_console_getchar(), this SBI call will block if there remain any
     /// pending characters to be transmitted or if the receiving terminal is
@@ -65,6 +63,6 @@ pub const Legacy = struct {
     /// exist at all, then the character is thrown away. This SBI call returns
     /// 0 upon success or an implementation specific negative error code.
     pub fn console_putchar(ch: u8) SbiError!void {
-        _ = try ecall(0x01, 0x00, &.{ @intCast(ch) });
+        _ = try ecall(0x01, 0x00, &.{@intCast(ch)});
     }
 };
