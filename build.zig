@@ -10,19 +10,25 @@ pub fn build(b: *std.Build) void {
         },
     });
 
+    const optimize = .Debug;
+
+    const dtb = b.dependency("dtb", .{});
+
     const kernel = b.addExecutable(.{
         .name = "kernel",
         .root_module = b.createModule(.{
             .root_source_file = b.path("kernel/kmain.zig"),
             .code_model = .medium,
             .target = target,
-            .optimize = .Debug,
+            .optimize = optimize,
             .strip = false,
-        })
+        }),
     });
 
     kernel.addAssemblyFile(b.path("kernel/start.s"));
     kernel.setLinkerScript(b.path("kernel/linker.ld"));
+
+    kernel.root_module.addImport("dtb", dtb.module("dtb"));
 
     b.installArtifact(kernel);
 

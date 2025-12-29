@@ -1,22 +1,17 @@
 const std = @import("std");
+const dtb = @import("dtb");
 
 const DebugConsole = @import("DebugConsole.zig");
-const DeviceTree = @import("DeviceTree.zig");
+
 
 /// Boot hart entry point
-export fn kmain(_: usize, dtb: usize) noreturn {
+export fn kmain(_: usize, device_tree_blob: usize) noreturn {
+    const blob_size = 
+        dtb.totalSize(@ptrFromInt(device_tree_blob)) catch unreachable;
+
     var writer = DebugConsole.writer();
 
-    const device_tree = DeviceTree.parse(dtb) catch @panic("Device tree");
-
-    var reservations = device_tree.memory_reservations.iterator();
-
-    while (reservations.next()) |reservation| {
-        writer.print("start: {x}, size: {}\n", 
-            .{reservation.address, reservation.size}) catch unreachable;
-    }
-
-    writer.print("Done\n", .{}) catch unreachable;
+    writer.print("totalSize: {d}\n", .{blob_size}) catch unreachable;
 
     while (true) {}
 }
