@@ -4,6 +4,7 @@
 mod print;
 mod sbi;
 mod trap;
+mod memory;
 
 use core::arch::asm;
 
